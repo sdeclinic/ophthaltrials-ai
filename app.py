@@ -5,22 +5,48 @@ import pandas as pd
 st.set_page_config(page_title="OphthalTrials AI", layout="wide")
 
 # -----------------------------
-# SIDEBAR NAVIGATION
+# HEADER
 # -----------------------------
-st.sidebar.title("🧿 OphthalTrials AI")
-
-menu = st.sidebar.radio(
-    "Navigate",
-    ["🏠 Home", "🔍 Trial Finder", "🧠 Patient Matching", "ℹ️ About"]
-)
+st.markdown("""
+<h1 style='text-align:center; color:#0E6BA8;'>🧿 OphthalTrials AI</h1>
+<h4 style='text-align:center;'>Clinical Trial Finder + AI Matching</h4>
+<hr>
+""", unsafe_allow_html=True)
 
 # -----------------------------
-# FETCH TRIALS FUNCTION
+# INPUT SECTION
+# -----------------------------
+col1, col2 = st.columns(2)
+
+with col1:
+    condition = st.text_input("🔍 Enter Condition", "myopia")
+
+with col2:
+    india_only = st.checkbox("🇮🇳 India Trials Only")
+
+# -----------------------------
+# PATIENT SECTION
+# -----------------------------
+st.markdown("### 🧠 Patient Profile")
+
+col3, col4 = st.columns(2)
+
+with col3:
+    age = st.slider("Age", 1, 100, 30)
+
+with col4:
+    diagnosis = st.text_input("Diagnosis", condition)
+
+# AI toggle (SAFE)
+use_ai = st.checkbox("🧠 Enable AI Matching (Demo Mode)")
+
+# -----------------------------
+# FETCH TRIALS (ROBUST)
 # -----------------------------
 @st.cache_data
 def fetch_trials(condition):
     url = "https://clinicaltrials.gov/api/v2/studies"
-    params = {"query.term": condition, "pageSize": 20}
+    params = {"query.term": condition, "pageSize": 30}
 
     try:
         response = requests.get(url, params=params, timeout=10)
@@ -39,10 +65,10 @@ def fetch_trials(condition):
             countries = [loc.get("country", "") for loc in locations]
 
             trials.append({
-                "Title": identification.get("briefTitle", ""),
-                "Condition": ", ".join(conditions.get("conditions", [])),
-                "Status": status.get("overallStatus", ""),
-                "Countries": ", ".join(countries),
+                "Title": identification.get("briefTitle", "No title"),
+                "Condition": ", ".join(conditions.get("conditions", [])) or "Not specified",
+                "Status": status.get("overallStatus", "Not specified"),
+                "Countries": ", ".join(countries) if countries else "Not specified",
                 "NCTId": identification.get("nctId", "")
             })
 
@@ -52,133 +78,68 @@ def fetch_trials(condition):
         return pd.DataFrame()
 
 # -----------------------------
-# HOME SCREEN
+# DEMO AI FUNCTION (NO COST)
 # -----------------------------
-if menu == "🏠 Home":
-
-    st.markdown("""
-    <h1 style='text-align:center; color:#0E6BA8;'>🧿 OphthalTrials AI</h1>
-    <h4 style='text-align:center;'>AI-assisted Clinical Trial Matching</h4>
-    """, unsafe_allow_html=True)
-
-    st.markdown("### 🚀 What this app does:")
-    st.write("""
-    - 🔍 Find ophthalmology clinical trials  
-    - 🇮🇳 Filter India-based studies  
-    - 🧠 Match patient profiles  
-    - 📊 Assist clinical decision making  
-    """)
-
-# -----------------------------
-# TRIAL FINDER
-# -----------------------------
-elif menu == "🔍 Trial Finder":
-
-    st.header("🔍 Trial Finder")
-
-    condition = st.text_input("Enter condition", "myopia")
-    india_only = st.checkbox("🇮🇳 India Trials Only")
-
-    df = fetch_trials(condition)
-
-    # SAFETY: handle empty dataframe
-    if df is None or df.empty:
-        st.warning("No trials found or API issue")
+def demo_ai_match(patient_diag, trial_condition):
+    if patient_diag.lower() in trial_condition.lower():
+        return "🟢 Likely Eligible – Diagnosis matches trial condition"
     else:
-
-        # Fill missing values to avoid crashes
-        df = df.fillna("Not specified")
-
-        # Apply India filter safely
-        if india_only:
-            df = df[df["Countries"].str.contains("India", case=False, na=False)]
-
-        st.write(f"📊 Found {len(df)} trials")
-
-        if df.empty:
-            st.warning("No trials after applying filters")
-        else:
-            for _, row in df.iterrows():
-
-                title = row.get("Title", "No title")
-                condition_text = row.get("Condition", "Not specified")
-                status = row.get("Status", "Not specified")
-                countries = row.get("Countries", "Not specified")
-                nct = row.get("NCTId", "")
-
-                st.markdown(f"""
-                <div style="
-                    background:#F7FBFF;
-                    padding:15px;
-                    border-radius:10px;
-                    margin-bottom:10px;
-                    border:1px solid #E0E0E0;
-                ">
-                <b>{title}</b><br><br>
-
-                <b>Condition:</b> {condition_text}<br>
-                <b>Status:</b> {status}<br>
-                <b>Countries:</b> {countries}<br><br>
-
-                <a href="https://clinicaltrials.gov/study/{nct}" target="_blank">
-                🔗 View Trial
-                </a>
-                </div>
-                """, unsafe_allow_html=True)# -----------------------------
-# PATIENT MATCHING (DEMO)
-# -----------------------------
-elif menu == "🧠 Patient Matching":
-
-    st.header("🧠 Patient Matching")
-
-    age = st.slider("Age", 1, 100, 30)
-    diagnosis = st.text_input("Diagnosis", "myopia")
-
-    st.info("Demo AI: Matching based on diagnosis relevance")
-
-    condition = diagnosis
-    df = fetch_trials(condition)
-
-    st.write(f"📊 Found {len(df)} trials")
-
-    if df.empty:
-        st.warning("No trials found")
-    else:
-        for _, row in df.iterrows():
-
-            st.markdown(f"### {row['Title']}")
-
-            st.write(f"Condition: {row['Condition']}")
-            st.write(f"Status: {row['Status']}")
-
-            # SIMPLE MATCH LOGIC
-            if diagnosis.lower() in row["Condition"].lower():
-                st.success("✅ Likely Match")
-            else:
-                st.warning("⚠️ Possible Match")
-
-            link = f"https://clinicaltrials.gov/study/{row['NCTId']}"
-            st.markdown(f"[View Trial]({link})")
-
-            st.write("---")
+        return "🟡 Possible Match – Needs further evaluation"
 
 # -----------------------------
-# ABOUT PAGE
+# GET DATA
 # -----------------------------
-elif menu == "ℹ️ About":
+df = fetch_trials(condition)
 
-    st.header("ℹ️ About")
+# -----------------------------
+# FILTER INDIA
+# -----------------------------
+if india_only and not df.empty:
+    df = df[df["Countries"].str.contains("India", case=False, na=False)]
 
-    st.write("""
-    **OphthalTrials AI** is a clinical decision support tool designed for ophthalmologists.
+# -----------------------------
+# RESULTS
+# -----------------------------
+st.markdown(f"## 📊 Found {len(df)} Trials")
 
-    Built to:
-    - Improve trial discovery
-    - Assist patient eligibility assessment
-    - Enhance academic and clinical practice
+if df.empty:
+    st.warning("No trials found. Try glaucoma, retina, or macular degeneration.")
 
-    ⚠️ This tool is assistive and not a substitute for clinical judgment.
-    """)
+else:
+    for _, row in df.iterrows():
 
-    st.markdown("---")
-    st.write("Developed for ophthalmology practice")
+        st.markdown(f"""
+        <div style="
+            background:#F7FBFF;
+            padding:20px;
+            border-radius:12px;
+            margin-bottom:15px;
+            border:1px solid #E0E0E0;
+        ">
+        <h4 style='color:#0E6BA8;'>{row['Title']}</h4>
+
+        <b>Condition:</b> {row['Condition']}<br>
+        <b>Status:</b> {row['Status']}<br>
+        <b>Countries:</b> {row['Countries']}<br><br>
+        """, unsafe_allow_html=True)
+
+        # AI Matching
+        if use_ai:
+            result = demo_ai_match(diagnosis, row["Condition"])
+            st.info(result)
+
+        # Link
+        link = f"https://clinicaltrials.gov/study/{row['NCTId']}"
+        st.markdown(f"[🔗 View Trial Details]({link})")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+# -----------------------------
+# FOOTER
+# -----------------------------
+st.markdown("""
+<hr>
+<p style='text-align:center; color: grey;'>
+Powered by ClinicalTrials.gov | Built for Ophthalmology Practice
+</p>
+""", unsafe_allow_html=True)
