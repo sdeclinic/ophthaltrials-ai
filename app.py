@@ -7,7 +7,12 @@ st.set_page_config(page_title="OphthalTrials AI", layout="centered")
 st.title("🧿 OphthalTrials AI")
 st.write("Find ophthalmology clinical trials easily")
 
+# -----------------------------
+# INPUTS
+# -----------------------------
 condition = st.text_input("Enter condition", "myopia")
+
+india_only = st.checkbox("🇮🇳 Show only trials in India")
 
 # -----------------------------
 # FETCH TRIALS (NEW API v2)
@@ -18,7 +23,7 @@ def fetch_trials(condition):
 
     params = {
         "query.term": condition,
-        "pageSize": 20
+        "pageSize": 50
     }
 
     try:
@@ -29,7 +34,6 @@ def fetch_trials(condition):
             return pd.DataFrame()
 
         data = response.json()
-
         studies = data.get("studies", [])
 
         trials = []
@@ -38,13 +42,22 @@ def fetch_trials(condition):
             identification = protocol.get("identificationModule", {})
             status = protocol.get("statusModule", {})
             conditions = protocol.get("conditionsModule", {})
-            locations = protocol.get("contactsLocationsModule", {})
+            locations_module = protocol.get("contactsLocationsModule", {})
+
+            locations = locations_module.get("locations", [])
+
+            # Extract country names
+            countries = []
+            for loc in locations:
+                country = loc.get("country", "")
+                if country:
+                    countries.append(country)
 
             trials.append({
                 "Title": identification.get("briefTitle", ""),
                 "Condition": ", ".join(conditions.get("conditions", [])),
                 "Status": status.get("overallStatus", ""),
-                "Location": str(locations.get("locations", []))[:80],
+                "Countries": ", ".join(countries),
                 "NCTId": identification.get("nctId", "")
             })
 
@@ -61,18 +74,24 @@ def fetch_trials(condition):
 df = fetch_trials(condition)
 
 # -----------------------------
+# INDIA FILTER
+# -----------------------------
+if india_only and not df.empty:
+    df = df[df["Countries"].str.contains("India", case=False, na=False)]
+
+# -----------------------------
 # DISPLAY
 # -----------------------------
 st.write(f"🔍 Found {len(df)} trials")
 
 if df.empty:
-    st.warning("No trials found. Try: glaucoma, retina, macular degeneration.")
+    st.warning("No trials found. Try other keywords like glaucoma or retina.")
 else:
     for _, row in df.iterrows():
         st.markdown(f"### {row['Title']}")
         st.write(f"**Condition:** {row['Condition']}")
         st.write(f"**Status:** {row['Status']}")
-        st.write(f"**Location:** {row['Location']}")
+        st.write(f"**Countries:** {row['Countries']}")
 
         link = f"https://clinicaltrials.gov/study/{row['NCTId']}"
         st.markdown(f"[🔗 View Trial Details]({link})")
