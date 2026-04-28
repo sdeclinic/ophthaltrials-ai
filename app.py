@@ -7,50 +7,51 @@ st.set_page_config(page_title="OphthalTrials AI", layout="centered")
 st.title("🧿 OphthalTrials AI")
 st.write("Find ophthalmology clinical trials easily")
 
-# -----------------------------
-# USER INPUT
-# -----------------------------
-condition = st.text_input("Enter condition", "keratoconus")
+condition = st.text_input("Enter condition", "myopia")
 
 # -----------------------------
-# FETCH TRIALS FUNCTION (SAFE)
+# FETCH TRIALS (NEW API v2)
 # -----------------------------
 @st.cache_data
 def fetch_trials(condition):
-    url = f"https://clinicaltrials.gov/api/query/study_fields?expr={condition}&fields=NCTId,BriefTitle,Condition,LocationCountry,OverallStatus&min_rnk=1&max_rnk=20&fmt=json"
+    url = "https://clinicaltrials.gov/api/v2/studies"
+
+    params = {
+        "query.term": condition,
+        "pageSize": 20
+    }
 
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, params=params, timeout=10)
 
         if response.status_code != 200:
-            st.warning("⚠️ Server error. Please try again.")
+            st.warning("⚠️ Server not responding. Try again.")
             return pd.DataFrame()
 
-        try:
-            data = response.json()
-        except:
-            st.warning("⚠️ Error reading data. Please retry.")
-            return pd.DataFrame()
+        data = response.json()
 
-        studies = data.get("StudyFieldsResponse", {}).get("StudyFields", [])
-
-        if not studies:
-            return pd.DataFrame()
+        studies = data.get("studies", [])
 
         trials = []
         for s in studies:
+            protocol = s.get("protocolSection", {})
+            identification = protocol.get("identificationModule", {})
+            status = protocol.get("statusModule", {})
+            conditions = protocol.get("conditionsModule", {})
+            locations = protocol.get("contactsLocationsModule", {})
+
             trials.append({
-                "Title": s.get("BriefTitle", [""])[0],
-                "Condition": s.get("Condition", [""])[0],
-                "Country": s.get("LocationCountry", [""])[0],
-                "Status": s.get("OverallStatus", [""])[0],
-                "NCTId": s.get("NCTId", [""])[0]
+                "Title": identification.get("briefTitle", ""),
+                "Condition": ", ".join(conditions.get("conditions", [])),
+                "Status": status.get("overallStatus", ""),
+                "Location": str(locations.get("locations", []))[:80],
+                "NCTId": identification.get("nctId", "")
             })
 
         return pd.DataFrame(trials)
 
     except Exception:
-        st.error("⚠️ Network issue. Please try again.")
+        st.error("⚠️ Network issue. Please retry.")
         return pd.DataFrame()
 
 
@@ -60,21 +61,20 @@ def fetch_trials(condition):
 df = fetch_trials(condition)
 
 # -----------------------------
-# DISPLAY RESULTS
+# DISPLAY
 # -----------------------------
 st.write(f"🔍 Found {len(df)} trials")
 
 if df.empty:
-    st.warning("No trials found. Try another condition like glaucoma or myopia.")
-
+    st.warning("No trials found. Try: glaucoma, retina, macular degeneration.")
 else:
     for _, row in df.iterrows():
         st.markdown(f"### {row['Title']}")
         st.write(f"**Condition:** {row['Condition']}")
-        st.write(f"**Location:** {row['Country']}")
         st.write(f"**Status:** {row['Status']}")
+        st.write(f"**Location:** {row['Location']}")
 
-        trial_link = f"https://clinicaltrials.gov/study/{row['NCTId']}"
-        st.markdown(f"[🔗 View Trial Details]({trial_link})")
+        link = f"https://clinicaltrials.gov/study/{row['NCTId']}"
+        st.markdown(f"[🔗 View Trial Details]({link})")
 
         st.write("---")
