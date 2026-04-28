@@ -1,31 +1,41 @@
-import streamlit as st
+        import streamlit as st
 import requests
 import pandas as pd
 
-st.title("🧿 OphthalTrials AI")
+st.set_page_config(page_title="OphthalTrials AI", layout="centered")
 
+st.title("🧿 OphthalTrials AI")
+st.write("Find ophthalmology clinical trials easily")
+
+# -----------------------------
+# USER INPUT
+# -----------------------------
 condition = st.text_input("Enter condition", "keratoconus")
 
-@st.cache_data
-@st.cache_data
+# -----------------------------
+# FETCH TRIALS FUNCTION (SAFE)
+# -----------------------------
 @st.cache_data
 def fetch_trials(condition):
-    url = f"https://clinicaltrials.gov/api/query/study_fields?expr={condition}+eye&fields=NCTId,BriefTitle,Condition,LocationCountry,Phase,OverallStatus&min_rnk=1&max_rnk=20&fmt=json"
+    url = f"https://clinicaltrials.gov/api/query/study_fields?expr={condition}&fields=NCTId,BriefTitle,Condition,LocationCountry,OverallStatus&min_rnk=1&max_rnk=20&fmt=json"
 
     try:
         response = requests.get(url, timeout=10)
 
         if response.status_code != 200:
-            st.warning("⚠️ Server error")
+            st.warning("⚠️ Server error. Please try again.")
             return pd.DataFrame()
 
         try:
             data = response.json()
         except:
-            st.warning("⚠️ Data error. Try again.")
+            st.warning("⚠️ Error reading data. Please retry.")
             return pd.DataFrame()
 
         studies = data.get("StudyFieldsResponse", {}).get("StudyFields", [])
+
+        if not studies:
+            return pd.DataFrame()
 
         trials = []
         for s in studies:
@@ -39,6 +49,32 @@ def fetch_trials(condition):
 
         return pd.DataFrame(trials)
 
-    except:
-        st.error("⚠️ Network error")
+    except Exception:
+        st.error("⚠️ Network issue. Please try again.")
         return pd.DataFrame()
+
+
+# -----------------------------
+# GET DATA
+# -----------------------------
+df = fetch_trials(condition)
+
+# -----------------------------
+# DISPLAY RESULTS
+# -----------------------------
+st.write(f"🔍 Found {len(df)} trials")
+
+if df.empty:
+    st.warning("No trials found. Try another condition like glaucoma or myopia.")
+
+else:
+    for _, row in df.iterrows():
+        st.markdown(f"### {row['Title']}")
+        st.write(f"**Condition:** {row['Condition']}")
+        st.write(f"**Location:** {row['Country']}")
+        st.write(f"**Status:** {row['Status']}")
+
+        trial_link = f"https://clinicaltrials.gov/study/{row['NCTId']}"
+        st.markdown(f"[🔗 View Trial Details]({trial_link})")
+
+        st.write("---")
