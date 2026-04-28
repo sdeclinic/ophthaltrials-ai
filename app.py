@@ -2,14 +2,15 @@ import streamlit as st
 import requests
 import pandas as pd
 
-st.set_page_config(page_title="OphthalTrials AI", layout="wide")
+st.set_page_config(page_title="Sai Deep OphthalTrials AI", layout="wide")
 
 # -----------------------------
-# HEADER
+# HEADER (BRANDED)
 # -----------------------------
 st.markdown("""
-<h1 style='text-align:center; color:#0E6BA8;'>🧿 OphthalTrials AI</h1>
-<h4 style='text-align:center;'>Clinical Trial Finder + AI Matching</h4>
+<h1 style='text-align:center; color:#0E6BA8;'>🧿 Sai Deep Eye Clinic</h1>
+<h3 style='text-align:center;'>OphthalTrials AI</h3>
+<p style='text-align:center; color:grey;'>AI-assisted Clinical Trial Matching in Ophthalmology</p>
 <hr>
 """, unsafe_allow_html=True)
 
@@ -37,11 +38,10 @@ with col3:
 with col4:
     diagnosis = st.text_input("Diagnosis", condition)
 
-# AI toggle (SAFE)
 use_ai = st.checkbox("🧠 Enable AI Matching (Demo Mode)")
 
 # -----------------------------
-# FETCH TRIALS (ROBUST)
+# FETCH TRIALS
 # -----------------------------
 @st.cache_data
 def fetch_trials(condition):
@@ -78,7 +78,7 @@ def fetch_trials(condition):
         return pd.DataFrame()
 
 # -----------------------------
-# DEMO AI FUNCTION (NO COST)
+# DEMO AI
 # -----------------------------
 def demo_ai_match(patient_diag, trial_condition):
     if patient_diag.lower() in trial_condition.lower():
@@ -91,9 +91,6 @@ def demo_ai_match(patient_diag, trial_condition):
 # -----------------------------
 df = fetch_trials(condition)
 
-# -----------------------------
-# FILTER INDIA
-# -----------------------------
 if india_only and not df.empty:
     df = df[df["Countries"].str.contains("India", case=False, na=False)]
 
@@ -123,23 +120,29 @@ else:
         <b>Countries:</b> {row['Countries']}<br><br>
         """, unsafe_allow_html=True)
 
-        # AI Matching
         if use_ai:
             result = demo_ai_match(diagnosis, row["Condition"])
             st.info(result)
 
-        # Link
         link = f"https://clinicaltrials.gov/study/{row['NCTId']}"
         st.markdown(f"[🔗 View Trial Details]({link})")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
-# FOOTER
+# FOOTER (BRANDED CTA)
 # -----------------------------
 st.markdown("""
 <hr>
-<p style='text-align:center; color: grey;'>
-Powered by ClinicalTrials.gov | Built for Ophthalmology Practice
+<p style='text-align:center; color:#0E6BA8; font-weight:bold;'>
+Sai Deep Eye Clinic
+</p>
+
+<p style='text-align:center;'>
+Providing advanced eye care with technology & compassion
+</p>
+
+<p style='text-align:center; color:grey;'>
+📞 Book your consultation today
 </p>
 """, unsafe_allow_html=True)
