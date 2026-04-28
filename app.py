@@ -5,17 +5,22 @@ import pandas as pd
 st.set_page_config(page_title="OphthalTrials AI", layout="centered")
 
 st.title("🧿 OphthalTrials AI")
-st.write("Find ophthalmology clinical trials easily")
+st.write("Find and match ophthalmology clinical trials")
 
 # -----------------------------
-# INPUTS
+# USER INPUT
 # -----------------------------
 condition = st.text_input("Enter condition", "myopia")
 
 india_only = st.checkbox("🇮🇳 Show only trials in India")
 
+st.markdown("### 🧠 Patient Details (for AI Matching)")
+
+age = st.slider("Age", 1, 100, 30)
+diagnosis = st.text_input("Diagnosis", condition)
+
 # -----------------------------
-# FETCH TRIALS (NEW API v2)
+# FETCH TRIALS
 # -----------------------------
 @st.cache_data
 def fetch_trials(condition):
@@ -30,7 +35,7 @@ def fetch_trials(condition):
         response = requests.get(url, params=params, timeout=10)
 
         if response.status_code != 200:
-            st.warning("⚠️ Server not responding. Try again.")
+            st.warning("⚠️ Server error. Try again.")
             return pd.DataFrame()
 
         data = response.json()
@@ -46,12 +51,10 @@ def fetch_trials(condition):
 
             locations = locations_module.get("locations", [])
 
-            # Extract country names
             countries = []
             for loc in locations:
-                country = loc.get("country", "")
-                if country:
-                    countries.append(country)
+                if loc.get("country"):
+                    countries.append(loc.get("country"))
 
             trials.append({
                 "Title": identification.get("briefTitle", ""),
@@ -63,9 +66,31 @@ def fetch_trials(condition):
 
         return pd.DataFrame(trials)
 
-    except Exception:
-        st.error("⚠️ Network issue. Please retry.")
+    except:
+        st.error("⚠️ Network issue")
         return pd.DataFrame()
+
+
+# -----------------------------
+# AI MATCHING LOGIC
+# -----------------------------
+def match_score(trial_condition, patient_diag, age):
+    score = 40
+    reason = []
+
+    if patient_diag.lower() in trial_condition.lower():
+        score += 40
+        reason.append("Diagnosis matches trial condition")
+
+    if age < 40:
+        score += 10
+        reason.append("Age suitable for most trials")
+
+    if "myopia" in trial_condition.lower():
+        score += 5
+        reason.append("Refractive condition relevance")
+
+    return min(score, 100), ", ".join(reason)
 
 
 # -----------------------------
@@ -85,13 +110,23 @@ if india_only and not df.empty:
 st.write(f"🔍 Found {len(df)} trials")
 
 if df.empty:
-    st.warning("No trials found. Try other keywords like glaucoma or retina.")
+    st.warning("No trials found. Try glaucoma, retina, etc.")
+
 else:
     for _, row in df.iterrows():
+        score, reason = match_score(row["Condition"], diagnosis, age)
+
         st.markdown(f"### {row['Title']}")
+
         st.write(f"**Condition:** {row['Condition']}")
         st.write(f"**Status:** {row['Status']}")
         st.write(f"**Countries:** {row['Countries']}")
+
+        # MATCH SCORE BAR
+        st.progress(score / 100)
+        st.write(f"🧠 Match Score: **{score}%**")
+
+        st.info(f"Why matched: {reason}")
 
         link = f"https://clinicaltrials.gov/study/{row['NCTId']}"
         st.markdown(f"[🔗 View Trial Details]({link})")
