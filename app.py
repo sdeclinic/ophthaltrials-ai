@@ -81,31 +81,50 @@ elif menu == "🔍 Trial Finder":
 
     df = fetch_trials(condition)
 
-    if india_only and not df.empty:
-        df = df[df["Countries"].str.contains("India", case=False, na=False)]
-
-    st.write(f"📊 Found {len(df)} trials")
-
-    if df.empty:
-        st.warning("No trials found")
+    # SAFETY: handle empty dataframe
+    if df is None or df.empty:
+        st.warning("No trials found or API issue")
     else:
-        for _, row in df.iterrows():
-            st.markdown(f"""
-            <div style="
-                background:#F7FBFF;
-                padding:15px;
-                border-radius:10px;
-                margin-bottom:10px;
-            ">
-            <b>{row['Title']}</b><br>
-            {row['Condition']}<br>
-            {row['Status']}<br>
-            {row['Countries']}<br>
-            <a href="https://clinicaltrials.gov/study/{row['NCTId']}" target="_blank">View Trial</a>
-            </div>
-            """, unsafe_allow_html=True)
 
-# -----------------------------
+        # Fill missing values to avoid crashes
+        df = df.fillna("Not specified")
+
+        # Apply India filter safely
+        if india_only:
+            df = df[df["Countries"].str.contains("India", case=False, na=False)]
+
+        st.write(f"📊 Found {len(df)} trials")
+
+        if df.empty:
+            st.warning("No trials after applying filters")
+        else:
+            for _, row in df.iterrows():
+
+                title = row.get("Title", "No title")
+                condition_text = row.get("Condition", "Not specified")
+                status = row.get("Status", "Not specified")
+                countries = row.get("Countries", "Not specified")
+                nct = row.get("NCTId", "")
+
+                st.markdown(f"""
+                <div style="
+                    background:#F7FBFF;
+                    padding:15px;
+                    border-radius:10px;
+                    margin-bottom:10px;
+                    border:1px solid #E0E0E0;
+                ">
+                <b>{title}</b><br><br>
+
+                <b>Condition:</b> {condition_text}<br>
+                <b>Status:</b> {status}<br>
+                <b>Countries:</b> {countries}<br><br>
+
+                <a href="https://clinicaltrials.gov/study/{nct}" target="_blank">
+                🔗 View Trial
+                </a>
+                </div>
+                """, unsafe_allow_html=True)# -----------------------------
 # PATIENT MATCHING (DEMO)
 # -----------------------------
 elif menu == "🧠 Patient Matching":
