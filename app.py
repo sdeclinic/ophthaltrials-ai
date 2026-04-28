@@ -60,35 +60,7 @@ def fetch_trials(condition):
 # GPT FUNCTION (SAFE)
 # -----------------------------
 def gpt_match(patient, trial_condition):
-    try:
-        client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
-
-        prompt = f"""
-You are an ophthalmology expert.
-
-Patient:
-Age: {patient['age']}
-Diagnosis: {patient['diagnosis']}
-
-Trial Condition:
-{trial_condition}
-
-Give:
-1. Match score (0-100)
-2. Eligible / Maybe / Not Eligible
-3. Short reason
-"""
-
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}]
-        )
-
-        return response.choices[0].message.content
-
-    except Exception as e:
-        return f"⚠️ AI error: {str(e)}"
-
+    return "🧠 Demo AI: Likely eligible based on diagnosis match"
 # -----------------------------
 # GET DATA
 # -----------------------------
