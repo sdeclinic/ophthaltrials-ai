@@ -26,7 +26,7 @@ with col2:
     india_only = st.checkbox("🇮🇳 India Trials Only")
 
 # -----------------------------
-# PATIENT SECTION
+# PATIENT PROFILE
 # -----------------------------
 st.markdown("### 🧠 Patient Profile")
 
@@ -78,7 +78,7 @@ def fetch_trials(condition):
         return pd.DataFrame()
 
 # -----------------------------
-# DEMO AI
+# DEMO AI MATCHING
 # -----------------------------
 def demo_ai_match(patient_diag, trial_condition):
     if patient_diag.lower() in trial_condition.lower():
@@ -91,13 +91,60 @@ def demo_ai_match(patient_diag, trial_condition):
 # -----------------------------
 df = fetch_trials(condition)
 
+# -----------------------------
+# FILTER INDIA
+# -----------------------------
 if india_only and not df.empty:
     df = df[df["Countries"].str.contains("India", case=False, na=False)]
 
 # -----------------------------
+# KPI CALCULATIONS
+# -----------------------------
+total_trials = len(df)
+
+recruiting_trials = 0
+india_trials = 0
+
+if not df.empty:
+    recruiting_trials = df[df["Status"].str.contains("Recruiting", case=False, na=False)].shape[0]
+    india_trials = df[df["Countries"].str.contains("India", case=False, na=False)].shape[0]
+
+# -----------------------------
+# KPI CARDS UI
+# -----------------------------
+st.markdown("## 📊 Overview")
+
+colA, colB, colC = st.columns(3)
+
+def card(title, value, subtitle=""):
+    st.markdown(f"""
+    <div style="
+        background: linear-gradient(145deg, #0B1F3A, #122A4A);
+        padding:25px;
+        border-radius:15px;
+        text-align:center;
+        color:white;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    ">
+        <h1 style='color:#00E5C0; margin-bottom:5px;'>{value}</h1>
+        <p style='color:#A0AEC0; font-size:16px;'>{title}</p>
+        <p style='color:#00E5C0; font-size:14px;'>{subtitle}</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+with colA:
+    card("TRIALS FOUND", total_trials)
+
+with colB:
+    card("RECRUITING NOW", recruiting_trials)
+
+with colC:
+    card("INDIA SITES", india_trials, "Use India filter ↑")
+
+# -----------------------------
 # RESULTS
 # -----------------------------
-st.markdown(f"## 📊 Found {len(df)} Trials")
+st.markdown(f"## 🔍 Results")
 
 if df.empty:
     st.warning("No trials found. Try glaucoma, retina, or macular degeneration.")
@@ -120,17 +167,19 @@ else:
         <b>Countries:</b> {row['Countries']}<br><br>
         """, unsafe_allow_html=True)
 
+        # AI MATCH
         if use_ai:
             result = demo_ai_match(diagnosis, row["Condition"])
             st.info(result)
 
+        # LINK
         link = f"https://clinicaltrials.gov/study/{row['NCTId']}"
         st.markdown(f"[🔗 View Trial Details]({link})")
 
         st.markdown("</div>", unsafe_allow_html=True)
 
 # -----------------------------
-# FOOTER (BRANDED CTA)
+# FOOTER
 # -----------------------------
 st.markdown("""
 <hr>
@@ -139,7 +188,7 @@ Sai Deep Eye Clinic
 </p>
 
 <p style='text-align:center;'>
-Providing advanced eye care with technology & compassion
+Advanced eye care with technology & compassion
 </p>
 
 <p style='text-align:center; color:grey;'>
